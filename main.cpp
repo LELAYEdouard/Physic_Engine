@@ -66,7 +66,7 @@ class Vector3{
         }
 
         void print(){
-            std::cout<< " " <<this->x << " " <<this->y << " " <<this->z << std::endl;
+            std::cout<< "(" <<this->x << "," <<this->y << "," <<this->z<< ")" << std::endl;
         }
     
 };
@@ -86,7 +86,22 @@ class Particles{
             this->mass=0;
             this->forces=v;
         }
-        
+        Particles(Vector3 pos){
+            Vector3 v;
+            this->pos=pos;
+            this->speed=v;
+            this->acceleration=v;
+            this->mass=1;
+            this->forces=v;
+        }
+        Particles(Vector3 pos,float mass){
+            Vector3 v;
+            this->pos=pos;
+            this->speed=v;
+            this->acceleration=v;
+            this->mass=mass;
+            this->forces=v;
+        }
         Particles(Vector3 pos,Vector3 speed,float mass){
             Vector3 v;
             this->pos=pos;
@@ -121,10 +136,10 @@ class Particles{
 const Vector3 g(0,-9.81,0);
 
 int main(){
-    Vector3 x(3,5,0);
-    Vector3 y(0,0,0);
+    Vector3 x(0,5,0);
+    Vector3 y(2,0.5,0.2);
     //std::cout <<x.dist(y)<<std::endl;
-    Particles p(x,y,50);
+    Particles p(x);
     p.applyForce(g);
     for(int i=0;i<20;i++){
         p.updateAcceleration();
