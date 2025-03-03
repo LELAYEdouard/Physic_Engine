@@ -185,9 +185,21 @@ int main(){
     glfwInit();
 
     GLfloat vertices[]={
-        0,0,0,
-        1,0,0,
-        0,1,0
+        0.0,0.0,0.0,
+        0.5,0.0,0.0,
+        0.0,0.5,0.0,
+        0.5,0.5,0.0
+    };
+    float baseVertices[] = {
+        0.0,0.0,0.0,
+        0.5,0.0,0.0,
+        0.0,0.5,0.0,
+        0.5,0.5,0.0
+    };
+
+    GLuint indices[]={
+        0,1,2,
+        2,3,1
 
     };
 
@@ -205,59 +217,75 @@ int main(){
     }
     //assoscie opengGL a la fenetre
     glfwMakeContextCurrent(window); 
+    //charge les fonctions de openGL
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cerr << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
 
-    //charge les fonctions de openGL
-    gladLoadGL();
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cerr << "Erreur: Impossible d'initialiser GLAD" << std::endl;
-        return -1;
-    }
 
     //precise le Viewport 
-    glViewport(0,0,800,600);
+    glViewport(0,0,720,640);
    
+    //creer un vertex shader
     GLuint vertexShader= glCreateShader(GL_VERTEX_SHADER);
+    //rattache le code source du shader au shader  
     glShaderSource(vertexShader,1,&vertexShaderSource,NULL);
+    //compile le code en langage machine
     glCompileShader(vertexShader);
 
+    //creer un fragment shader
     GLuint fragmentShader= glCreateShader(GL_FRAGMENT_SHADER);
+    //rattache le code source du shader au shader  
     glShaderSource(fragmentShader,1,&fragmentShaderSource,NULL);
+    //compile le code en langage machine
     glCompileShader(fragmentShader);
 
+    //creer une shader programme
     GLuint shaderProgram=glCreateProgram();   
-    
+    //rattache les shader au programme de shader
     glAttachShader(shaderProgram,vertexShader);
     glAttachShader(shaderProgram,fragmentShader);
-
+    //lie les shader au pragramme
     glLinkProgram(shaderProgram);
-
+    //supprime les shader 
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-
-    GLuint VAO,VBO;
+    //creer les conteneur pour le vertex array object et le vertex buffer object, et le index array object
+    GLuint VAO,VBO,EBO;
+    //genere un vertex array
     glGenVertexArrays(1,&VAO); 
+    //genere un vertex buffer 
     glGenBuffers(1,&VBO);
-
+    //genere le EBO
+    glGenBuffers(1,&EBO);
+    
+    //bind le VAO
     glBindVertexArray(VAO);
-    if (VAO == 0 || VBO == 0) {
-    std::cerr << "Erreur lors de la génération des buffers" << std::endl;
-    return -1;
-    }
 
-
+    //bind le VBO en precisant que c'est un GL_ARRAY_BUFFER
     glBindBuffer(GL_ARRAY_BUFFER,VBO);
+    //met les donné dans le buffer 
     glBufferData(GL_ARRAY_BUFFER,sizeof(vertices),vertices,GL_STATIC_DRAW);
 
+    //bind le EBO en d^precisant que c un GL_ELEMENT_ARRAY_BUFFER
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,EBO);
+    //met les donné dans le buffer
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER,sizeof(indices),indices,GL_STATIC_DRAW);
+
+    //configure le Verttex Atttribute pour que opengl comprenne comment lire le VBO
     glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
+    //active le Vertex Attribute pour que opengl sais comment lutiliser
     glEnableVertexAttribArray(0);
 
+    //bind le VAO et VBO pour pas les modifier
     glBindBuffer(GL_ARRAY_BUFFER,0);
+    //bind le Vertex array pour pas le modifier
     glBindVertexArray(0);
+    //bind le EBO pour pas le modif
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+
 
     //choisi la couleur de fond
     glClearColor(0.5f,0.25f,0.05f,1.0f);
@@ -265,19 +293,42 @@ int main(){
     glClear(GL_COLOR_BUFFER_BIT);
     //echange le buffer du fond avec celui de lavant
     glfwSwapBuffers(window);
+    float i=0.0;
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Affiche le maillage
+
     while(!glfwWindowShouldClose(window)){
-        glClearColor(0.2f,0.05f,0.15f,1.0f);
+        i += 0.1;
+
+        
+        vertices[1] = baseVertices[1] + sin(i)/2;
+        vertices[4] = baseVertices[4] + sin(i)/2;
+        vertices[7] = baseVertices[7] + sin(i)/2;
+        vertices[10] = baseVertices[10] + sin(i)/2;
+        
+        
+        // Met à jour le VBO
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        
+        // Nettoyage écran
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); 
+
         glClear(GL_COLOR_BUFFER_BIT);
+
+        // Utilisation du shader et dessin
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES,0,3);
+        glDrawElements(GL_TRIANGLES,6,GL_UNSIGNED_INT,0);
+
+        // Mise à jour des buffers et événements
         glfwSwapBuffers(window);
-        //prend en compte tt les event GLFW
         glfwPollEvents();
     }
 
+
     glDeleteBuffers(1,&VAO);
     glDeleteBuffers(1,&VBO);
+    glDeleteBuffers(1,&EBO);
     glDeleteProgram(shaderProgram);
     //supprime la fenetre
     glfwDestroyWindow(window);
