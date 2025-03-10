@@ -5,168 +5,6 @@
 #include <GLFW/glfw3.h>
 
 
-class Vector3{
-    public:
-        float x,y,z;
-        Vector3(){
-            this->x=0;
-            this->y=0;
-            this->z=0;
-        }
-        Vector3(float x,float y,float z){
-            this->x=x;
-            this->y=y;
-            this->z=z;
-        }
-        void add(Vector3 v){
-            x+=v.x;
-            y+=v.y;
-            z+=v.z;
-        }
-
-        void sub(Vector3 v){
-            x-=v.x;
-            y-=v.y;
-            z-=v.z;
-        }
-        void neg(){
-            x=-x;
-            y=-y;
-            z=-z;
-        }
-        float scal(Vector3 v){
-            return x*v.x+y*v.y+z*v.z;
-        }
-
-        float norm(){
-            return pow(pow(x,2)+pow(y,2)+pow(z,2),0.5);
-        }
-
-        float dist(Vector3 v){
-            return sqrt(pow(x-v.x,2)+pow(y-v.y,2)+pow(z-v.z,2));
-        }
-
-        void rotX(float teta){
-            float y0 =y;
-            float z0=z;
-            y=cos(teta)*y0-sin(teta)*z0;
-            z=sin(teta)*y0+cos(teta)*z0;
-        }
-
-        void rotY(float teta){
-            float z0=z;
-            float x0=x;
-            x=cos(teta)*x0+sin(teta)*z0;
-            z=-sin(teta)*x0+cos(teta)*z0;
-        }
-
-        void rotZ(float teta){
-            float y0=y;
-            float x0=x;
-            x=cos(teta)*x0-sin(teta)*y0;
-            y=sin(teta)*x0+cos(teta)*y0;
-        }
-
-        void print(){
-            std::cout<< "(" <<this->x << "," <<this->y << "," <<this->z<< ")" << std::endl;
-        }
-    
-};
-class Particle{
-    public:
-        Vector3 pos;
-        Vector3 speed;
-        Vector3 acceleration;
-        float mass;
-        Vector3 forces;
-
-        Particle(){
-            Vector3 v;
-            this->pos=v;
-            this->speed=v;
-            this->acceleration=v;
-            this->mass=0;
-            this->forces=v;
-        }
-        Particle(Vector3 pos){
-            Vector3 v;
-            this->pos=pos;
-            this->speed=v;
-            this->acceleration=v;
-            this->mass=1;
-            this->forces=v;
-        }
-        Particle(Vector3 pos,float mass){
-            Vector3 v;
-            this->pos=pos;
-            this->speed=v;
-            this->acceleration=v;
-            this->mass=mass;
-            this->forces=v;
-        }
-        Particle(Vector3 pos,Vector3 speed,float mass){
-            Vector3 v;
-            this->pos=pos;
-            this->speed=speed;
-            this->acceleration=v;
-            this->mass=mass;
-            this->forces=v;
-        }
-        void applyForce(Vector3 v){
-            forces.add(v);
-        }
-        void updateAcceleration(){
-            if(forces.x !=0 || forces.y !=0 || forces.z !=0){
-                acceleration.x=forces.x/mass;
-                acceleration.y=forces.y/mass;
-                acceleration.z=forces.z/mass;
-            }
-        }
-
-        void updateSpeed(float delta){
-            speed.x=speed.x+acceleration.x*delta;
-            speed.y=speed.y+acceleration.y*delta;
-            speed.z=speed.z+acceleration.z*delta;
-        }
-
-        void updatePos(float delta){
-            pos.x=pos.x+speed.x*delta;
-            pos.y=pos.y+speed.y*delta;
-            pos.z=pos.z+speed.z*delta;
-        }
-
-        void update(float delta,std::vector<Vector3> forces){
-            Vector3 v;
-            for(int i=0;i<forces.size();i++){
-                this->forces.add(forces.at(i));       
-            }
-            this->updateAcceleration();
-            this->updateSpeed(delta);
-            this->updatePos(delta);
-            this->forces =v;
-        }
-};
-class SysParticles{
-    public:
-        std::vector<Particle> tab;
-
-        SysParticles(){}
-
-        void addParticle(Particle p){
-            tab.push_back(p);
-        }
-
-        void updateParticles(float delta,std::vector<Vector3> forces){
-            
-            for(int i=0;i<tab.size();i++){
-                tab.at(i).update(delta,forces);
-                tab.at(i).pos.print();
-            }
-            
-        }
-};
-const Vector3 g(0,-9.81,0);
-
 const char* vertexShaderSource = "#version 330 core\n"
 "layout (location = 0) in vec3 aPos;\n"
 "void main()\n"
@@ -178,30 +16,98 @@ const char* fragmentShaderSource = "#version 330 core\n"
 "void main()\n"
 "{\n"
 "	FragColor = vec4(0.8f, 0.3f, 0.02f, 1.0f);\n"
-"}\n\0";
+"}\n\0";    
+
+const float dt=0.016; //tps de une frame en sec
+const std::vector<float> gravity={0.0,-9.81}; // N/Kg
+const float rebond=0.6; //coef de rebondissement
+const float G=6.674*pow(10,-11);
+
+std::vector<float> genVertexCircle(float cx,float cy,float r,int seg); 
+void VAOVBOConf(std::vector<float> v,GLuint *vao,GLuint *vbo);
+void draw_circle(GLuint shaderProg,std::vector<float> vert,GLuint VAO);
+
+
+class Circle{
+    public:
+        GLuint VAO,VBO;
+        std::vector<float> pos; // m
+        std::vector<float> speed={0.0,0.0}; // m/s
+        std::vector<float> acc={0.0,0.0}; // m/s^2
+        std::vector<float> applied_forces={0.0,0.0}; // N
+        float radius;
+        float weight = 1; // Kg
+        std::vector<float> vertices;
+
+        Circle(std::vector<float> pos,float weight,float radius){
+            this->pos=pos;
+            this->weight=weight;
+            this->radius=radius;
+        }
+
+        void genVert(){
+            vertices = genVertexCircle(pos[0],pos[1], radius, 70);
+            VAOVBOConf(vertices,&VAO,&VBO);
+        }
+
+        void updateVert(){
+            vertices = genVertexCircle(pos[0],pos[1], radius, 70);
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(float), vertices.data());
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        }
+        void delVAOBVO(){
+            glDeleteVertexArrays(1, &VAO);
+            glDeleteBuffers(1, &VBO);
+        }
+
+        void draw(GLuint shaderProgram){
+            glUseProgram(shaderProgram); // Utilise le shader compilé
+            glBindVertexArray(VAO);
+            glDrawArrays(GL_TRIANGLE_FAN, 0, vertices.size() / 3);
+            glBindVertexArray(0);
+        }
+
+        void updatePos(){
+            //applied_forces[0]+=gravity[0] * weight; //ajout gravité
+            //applied_forces[1]+=gravity[1] * weight; //ajout gravité
+        
+            acc[0] = applied_forces[0] / weight;
+            acc[1] = applied_forces[1] / weight;
+
+            
+
+            speed[0]+= acc[0]*dt;
+            speed[1]+= acc[1]*dt;
+
+            pos[0]+= speed[0]*dt;
+            pos[1]+= speed[1]*dt;
+
+            if (pos[0] - radius < -1 || pos[0] + radius > 1) {
+            speed[0] *= -rebond;
+            pos[0] = (pos[0] < 0) ? -1 + radius : 1 - radius;
+            }
+
+            // Collision avec les bords verticaux
+            if (pos[1] - radius < -1 || pos[1] + radius > 1) {
+                speed[1] *= -rebond;
+                pos[1] = (pos[1] < 0) ? -1 + radius : 1 - radius;
+            }
+            applied_forces={0.0,0.0};
+        };
+
+        void addForces(std::vector<float> f){
+            applied_forces[0]+=f[0];
+            applied_forces[1]+=f[1];
+        }
+
+        
+};
+void updateForces(std::vector<Circle*> &lst);
 
 int main(){
     //initialise glfw
     glfwInit();
-
-    GLfloat vertices[]={
-        0.0,0.0,0.0,
-        0.5,0.0,0.0,
-        0.0,0.5,0.0,
-        0.5,0.5,0.0
-    };
-    float baseVertices[] = {
-        0.0,0.0,0.0,
-        0.5,0.0,0.0,
-        0.0,0.5,0.0,
-        0.5,0.5,0.0
-    };
-
-    GLuint indices[]={
-        0,1,2,
-        2,3,1
-
-    };
 
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -209,7 +115,7 @@ int main(){
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     //creer une fenetre 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "HELP", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(720, 640, "HELP", NULL, NULL);
     if (!window) {
         std::cerr << "Erreur: Impossible de créer la fenêtre" << std::endl;
         glfwTerminate();
@@ -223,10 +129,6 @@ int main(){
         return -1;
     }
 
-
-    //precise le Viewport 
-    glViewport(0,0,720,640);
-   
     //creer un vertex shader
     GLuint vertexShader= glCreateShader(GL_VERTEX_SHADER);
     //rattache le code source du shader au shader  
@@ -251,88 +153,113 @@ int main(){
     //supprime les shader 
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
-
-    //creer les conteneur pour le vertex array object et le vertex buffer object, et le index array object
-    GLuint VAO,VBO,EBO;
-    //genere un vertex array
-    glGenVertexArrays(1,&VAO); 
-    //genere un vertex buffer 
-    glGenBuffers(1,&VBO);
-    //genere le EBO
-    glGenBuffers(1,&EBO);
     
-    //bind le VAO
-    glBindVertexArray(VAO);
-
-    //bind le VBO en precisant que c'est un GL_ARRAY_BUFFER
-    glBindBuffer(GL_ARRAY_BUFFER,VBO);
-    //met les donné dans le buffer 
-    glBufferData(GL_ARRAY_BUFFER,sizeof(vertices),vertices,GL_STATIC_DRAW);
-
-    //bind le EBO en d^precisant que c un GL_ELEMENT_ARRAY_BUFFER
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,EBO);
-    //met les donné dans le buffer
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,sizeof(indices),indices,GL_STATIC_DRAW);
-
-    //configure le Verttex Atttribute pour que opengl comprenne comment lire le VBO
-    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
-    //active le Vertex Attribute pour que opengl sais comment lutiliser
-    glEnableVertexAttribArray(0);
-
-    //bind le VAO et VBO pour pas les modifier
-    glBindBuffer(GL_ARRAY_BUFFER,0);
-    //bind le Vertex array pour pas le modifier
-    glBindVertexArray(0);
-    //bind le EBO pour pas le modif
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
 
 
-    //choisi la couleur de fond
-    glClearColor(0.5f,0.25f,0.05f,1.0f);
-    //clear le buffer fond et attribue la couleur
-    glClear(GL_COLOR_BUFFER_BIT);
-    //echange le buffer du fond avec celui de lavant
-    glfwSwapBuffers(window);
-    float i=0.0;
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Affiche le maillage
+
+    std::vector<float> pos={0.0,0.0};
+    std::vector<float> pos2={0.0,0.3};
+    std::vector<float> pos3={0.0,0.9};
+
+    std::vector<Circle> objs={
+        Circle(pos,7.5*10e7,0.1),
+        Circle(pos2,75,0.05)
+    };
+
+    for(int i =0; i<objs.size();i++){
+        objs[i].genVert();
+    }
+
+    std::vector<float> v1={2.0*10e2,0.0};
+    //c1.addForces(v1);
+    objs[1].addForces(v1);
+    
+    std::vector<Circle*> lst;
+
+    for(int i =0; i<objs.size();i++){
+        lst.push_back(&objs[i]);
+    }
 
     while(!glfwWindowShouldClose(window)){
-        i += 0.1;
-
-        
-        vertices[1] = baseVertices[1] + sin(i)/2;
-        vertices[4] = baseVertices[4] + sin(i)/2;
-        vertices[7] = baseVertices[7] + sin(i)/2;
-        vertices[10] = baseVertices[10] + sin(i)/2;
-        
-        
-        // Met à jour le VBO
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-        
-        // Nettoyage écran
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); 
-
         glClear(GL_COLOR_BUFFER_BIT);
-
-        // Utilisation du shader et dessin
-        glUseProgram(shaderProgram);
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES,6,GL_UNSIGNED_INT,0);
+        updateForces(lst);
+        for(int i =0; i<objs.size();i++){
+            objs[i].updatePos();
+            objs[i].updateVert();
+            objs[i].draw(shaderProgram);
+        }
 
         // Mise à jour des buffers et événements
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-
-    glDeleteBuffers(1,&VAO);
-    glDeleteBuffers(1,&VBO);
-    glDeleteBuffers(1,&EBO);
-    glDeleteProgram(shaderProgram);
-    //supprime la fenetre
+    // Cleanup
+    for(int i =0; i<objs.size();i++){
+        objs[i].delVAOBVO();
+    }
     glfwDestroyWindow(window);
-    //termine GLFW
     glfwTerminate();
+
     return 0;
+}
+
+std::vector<float> genVertexCircle(float cx,float cy,float r,int seg){
+    std::vector<float> vertices;
+
+    vertices.push_back(cx);
+    vertices.push_back(cy);
+    vertices.push_back(0.0);
+
+    for(int i=0;i<=seg;i++){
+        float theta = 2.0f * 3.1415926f * float(i) / float(seg);
+        float x = r * cos(theta);
+        float y = r * sin(theta);
+        vertices.push_back(cx + x);
+        vertices.push_back(cy + y);
+        vertices.push_back(0.0);
+    }
+
+    return vertices;
+
+}
+
+void VAOVBOConf(std::vector<float> v, GLuint *vao, GLuint *vbo) {
+    glGenVertexArrays(1, vao);
+    glGenBuffers(1, vbo);
+
+    glBindVertexArray(*vao);
+    glBindBuffer(GL_ARRAY_BUFFER, *vbo);
+
+    // Allouer la mémoire mais ne pas envoyer les données (elles seront mises à jour avec glBufferSubData)
+    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void updateForces(std::vector<Circle*> &lst){
+
+    for (int i =0 ;i<lst.size();i++){
+        for(int j =0;j<lst.size();j++){
+            if(i!=j){
+                std::vector<float> direction={lst[j]->pos[0] - lst[i]->pos[0],lst[j]->pos[1] - lst[i]->pos[1]};
+                float epsilon = 1e-6;
+                float distance =sqrt(direction[0]*direction[0]+direction[1]*direction[1])+epsilon;
+                
+
+                float f = (G * lst[i]->weight * lst[j]->weight ) / (distance * distance);
+                
+                direction[0] /= distance;
+                direction[1] /= distance;
+
+                std::vector<float> force = {direction[0] * f, direction[1] * f};
+
+                lst[i]->addForces(force);
+            }
+        }
+    }
 }
