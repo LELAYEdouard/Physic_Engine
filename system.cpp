@@ -159,20 +159,28 @@ int main(){
 
     std::vector<float> pos={0.0,0.0};
     std::vector<float> pos2={0.0,0.3};
-    std::vector<float> pos3={0.0,0.9};
+    std::vector<float> pos3={0.0,0.35};
+    std::vector<float> pos4={0.0,0.7};
 
     std::vector<Circle> objs={
         Circle(pos,7.5*10e7,0.1),
-        Circle(pos2,75,0.05)
+        Circle(pos2,750,0.05),
+        Circle(pos3,20,0.005),
+        Circle(pos4,900,0.06)
     };
 
     for(int i =0; i<objs.size();i++){
         objs[i].genVert();
     }
 
-    std::vector<float> v1={2.0*10e2,0.0};
+    std::vector<float> v1={2.0*10e3,0.0};
+    std::vector<float> v2={100,0.0};
+    std::vector<float> v3={1.5*10e3,0.0};
+
     //c1.addForces(v1);
     objs[1].addForces(v1);
+    objs[2].addForces(v2);
+    objs[3].addForces(v3);
     
     std::vector<Circle*> lst;
 
